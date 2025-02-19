@@ -3,8 +3,9 @@
 import rclpy
 from rclpy.node import Node
 import yaml
-from rcl_interfaces.srv import ListParameters
-from rclpy.parameter import Parameter
+from rcl_interfaces.srv import ListParameters, GetParameters, DescribeParameters
+from rclpy.parameter import Parameter, parameter_value_to_python
+from rclpy_message_converter import message_converter
 import time
 
 class ParameterCollector(Node):
@@ -37,24 +38,63 @@ class ParameterCollector(Node):
                 
                 for param_name in param_names:
                     param_client = self.create_client(
-                        rcl_interfaces.srv.GetParameters,
+                        GetParameters,
                         f'/{node_name}/get_parameters'
+                    )
+                    describe_client = self.create_client(
+                        DescribeParameters,
+                        f'/{node_name}/describe_parameters'
                     )
                     
                     if param_client.wait_for_service(timeout_sec=1.0):
-                        param_request = rcl_interfaces.srv.GetParameters.Request()
+                        
+                        self.get_logger().info(f'Getting parameter {param_name} for {node_name}')
+                        param_request = GetParameters.Request()
                         param_request.names = [param_name]
                         param_future = param_client.call_async(param_request)
                         rclpy.spin_until_future_complete(self, param_future)
                         
                         if param_future.result() is not None:
+                            self.get_logger().debug(f'Got parameter {param_name} for {node_name}')
                             value = param_future.result().values[0]
-                            params[param_name] = Parameter.from_parameter_msg(value).value
-                
+                            self.get_logger().debug(f'ParameterValue message: {param_name}: {value}')
+                            parameter = parameter_value_to_python(value)
+                            self.get_logger().debug(f'{param_name}: {parameter}')
+                            try:
+                                params[param_name] = parameter
+
+                                #self.get_logger().debug(f'{param_name}: {params[param_name]}')
+                            except Exception as e:
+                                self.get_logger().warn(f'Error getting value for {param_name}: {str(e)}')
+
+                    if describe_client.wait_for_service(timeout_sec=1.0):
+                        
+                        self.get_logger().info(f'Getting description for parameter {param_name} for {node_name}')
+                        param_request = DescribeParameters.Request()
+                        param_request.names = [param_name]
+                        param_future = describe_client.call_async(param_request)
+                        rclpy.spin_until_future_complete(self, param_future)
+                        
+                        if param_future.result() is not None:
+                            self.get_logger().debug(f'Got parameter {param_name} for {node_name}')
+                            value = message_converter.convert_ros_message_to_dictionary(param_future.result().descriptors[0])
+                            self.get_logger().debug(f'Description message: {param_name}: {value}')
+                            params[param_name+"__DESCR"] = f"{value['description']}"
+                            # parameter = parameter_value_to_python(value)
+                            # self.get_logger().info(f'{param_name}: {parameter}')
+                            # try:
+                            #     params[param_name] = parameter
+
+                            #     self.get_logger().info(f'{param_name}: {params[param_name]}')
+                            # except Exception as e:
+                            #     self.get_logger().warn(f'Error getting value for {param_name}: {str(e)}')
+
+
                 return params
             return {}
         except Exception as e:
             self.get_logger().error(f'Error getting parameters for {node_name}: {str(e)}')
+            raise e
             return {}
 
     def collect_all_parameters(self):
@@ -70,7 +110,7 @@ def main():
     collector = ParameterCollector()
     
     # Give some time for node discovery
-    time.sleep(5.0)
+    time.sleep(2.0)
     
     # Collect parameters
     params = collector.collect_all_parameters()
