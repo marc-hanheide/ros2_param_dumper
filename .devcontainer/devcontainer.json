@@ -1,0 +1,6 @@
+{
+    "name": "ROS2 Humble",
+    "image": "ros:humble",
+    "features": {},
+    "postCreateCommand": "apt-get update && apt-get install -y python3-colcon-common-extensions"
+}
