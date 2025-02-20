@@ -1,8 +1,10 @@
 {
     "name": "ROS2 Humble",
-    "image": "ros:humble",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "..",
+    },
     "features": {},
-    "postCreateCommand": "apt-get update && apt-get install -y python3-colcon-common-extensions",
     "containerEnv": {
         "PYTHONPATH": "/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/dist-packages"
     },
