@@ -5,6 +5,7 @@
         "context": "..",
     },
     "features": {},
+    "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash; colcon build'",
     "containerEnv": {
         "PYTHONPATH": "/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/dist-packages"
     },
